@@ -23,7 +23,9 @@ type fpTab struct {
 	drillDown    bool
 	selectedRule string
 	selectedDesc string
+	drillCursor  int
 	drillOffset  int
+	detailView   bool
 }
 
 func newFPTab(store *state.Store) fpTab {
@@ -62,20 +64,34 @@ func (t *fpTab) update(key string) {
 }
 
 func (t *fpTab) updateDrillDown(key string) {
+	if t.detailView {
+		switch key {
+		case "esc", "escape", "enter":
+			t.detailView = false
+		}
+		return
+	}
+
+	events := t.store.FPEventsByRule(t.selectedRule)
+	maxCursor := max(len(events)-1, 0)
+
 	switch key {
 	case "esc", "escape":
 		t.drillDown = false
 		t.selectedRule = ""
 		t.selectedDesc = ""
+		t.drillCursor = 0
 	case "j", "down":
-		events := t.store.FPEventsByRule(t.selectedRule)
-		maxOffset := max(len(events)-t.visibleRows()+4, 0)
-		if t.drillOffset < maxOffset {
-			t.drillOffset++
+		if t.drillCursor < maxCursor {
+			t.drillCursor++
 		}
 	case "k", "up":
-		if t.drillOffset > 0 {
-			t.drillOffset--
+		if t.drillCursor > 0 {
+			t.drillCursor--
+		}
+	case "enter":
+		if len(events) > 0 && t.drillCursor < len(events) {
+			t.detailView = true
 		}
 	}
 }
@@ -85,6 +101,9 @@ func (t *fpTab) visibleRows() int {
 }
 
 func (t *fpTab) view() string {
+	if t.detailView {
+		return t.viewDetail()
+	}
 	if t.drillDown {
 		return t.viewDrillDown()
 	}
@@ -191,6 +210,12 @@ func (t *fpTab) viewDrillDown() string {
 	b.WriteString("\n")
 
 	visible := max(t.visibleRows()-4, 1)
+	if t.drillCursor >= t.drillOffset+visible {
+		t.drillOffset = t.drillCursor - visible + 1
+	}
+	if t.drillCursor < t.drillOffset {
+		t.drillOffset = t.drillCursor
+	}
 	end := min(t.drillOffset+visible, len(events))
 
 	for i := t.drillOffset; i < end; i++ {
@@ -208,12 +233,74 @@ func (t *fpTab) viewDrillDown() string {
 			colMethod, ev.Method,
 			colURI, truncate(ev.URI, colURI),
 			colHTTP, ev.HTTPCode,
-			colData, truncate(data, colData),
+			colData, truncate(oneline(data), colData),
 		)
-		b.WriteString(lipgloss.NewStyle().Foreground(colorWarning).Render(row))
+		if i == t.drillCursor {
+			b.WriteString(selectedRowStyle.Render(row))
+		} else {
+			b.WriteString(lipgloss.NewStyle().Foreground(colorWarning).Render(row))
+		}
 		if i < end-1 {
 			b.WriteString("\n")
 		}
+	}
+
+	return b.String()
+}
+
+// viewDetail shows full event details with word-wrapped matched data.
+func (t *fpTab) viewDetail() string {
+	events := t.store.FPEventsByRule(t.selectedRule)
+	if t.drillCursor >= len(events) {
+		t.detailView = false
+		return t.viewDrillDown()
+	}
+	ev := events[t.drillCursor]
+
+	data := ""
+	msg := ""
+	for _, r := range ev.Rules {
+		if r.RuleID == t.selectedRule {
+			data = r.Data
+			msg = r.Message
+			break
+		}
+	}
+
+	var b strings.Builder
+
+	title := fmt.Sprintf("FP Candidate: %s — %s", t.selectedRule, msg)
+	b.WriteString(drillDownHeaderStyle.Render(title))
+	b.WriteString("\n")
+	b.WriteString(lipgloss.NewStyle().Foreground(colorDim).Render("  Esc/Enter to go back"))
+	b.WriteString("\n\n")
+
+	infoStyle := lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
+	b.WriteString(infoStyle.Render("  Time:   "))
+	b.WriteString(ev.Time.Format("Jan02 15:04:05"))
+	b.WriteString("\n")
+	b.WriteString(infoStyle.Render("  IP:     "))
+	b.WriteString(ev.ClientIP)
+	b.WriteString("\n")
+	b.WriteString(infoStyle.Render("  Method: "))
+	b.WriteString(ev.Method)
+	b.WriteString("\n")
+	b.WriteString(infoStyle.Render("  URI:    "))
+	b.WriteString(ev.URI)
+	b.WriteString("\n")
+	b.WriteString(infoStyle.Render("  HTTP:   "))
+	fmt.Fprintf(&b, "%d", ev.HTTPCode)
+	b.WriteString("\n\n")
+
+	b.WriteString(infoStyle.Render("  Matched Data:"))
+	b.WriteString("\n")
+
+	wrapWidth := max(t.width-4, 20)
+	wrapped := wordWrap(data, wrapWidth)
+	for _, line := range strings.Split(wrapped, "\n") {
+		b.WriteString("  ")
+		b.WriteString(lipgloss.NewStyle().Foreground(colorWarning).Render(line))
+		b.WriteString("\n")
 	}
 
 	return b.String()

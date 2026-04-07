@@ -326,14 +326,18 @@ func (a *App) renderHelpBar() string {
 			help += "  Enter:drill-down"
 		}
 	case tabRules:
-		if a.rulesTab.drillDown {
+		if a.rulesTab.detailView {
 			help += "  Esc:back"
+		} else if a.rulesTab.drillDown {
+			help += "  Enter:detail  Esc:back"
 		} else {
 			help += "  Enter:drill-down"
 		}
 	case tabFP:
-		if a.fpTab.drillDown {
+		if a.fpTab.detailView {
 			help += "  Esc:back"
+		} else if a.fpTab.drillDown {
+			help += "  Enter:detail  Esc:back"
 		} else {
 			help += "  Enter:drill-down"
 		}

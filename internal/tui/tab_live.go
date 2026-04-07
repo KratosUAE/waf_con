@@ -192,3 +192,41 @@ func truncate(s string, maxLen int) string {
 	}
 	return string(runes[:maxLen-1]) + "…"
 }
+
+// wordWrap wraps text at maxWidth, breaking on whitespace where possible.
+func wordWrap(s string, maxWidth int) string {
+	if maxWidth <= 0 {
+		return s
+	}
+	var b strings.Builder
+	for _, line := range strings.Split(s, "\n") {
+		words := strings.Fields(line)
+		lineLen := 0
+		for _, w := range words {
+			wLen := len([]rune(w))
+			if lineLen > 0 && lineLen+1+wLen > maxWidth {
+				b.WriteString("\n")
+				lineLen = 0
+			}
+			if lineLen > 0 {
+				b.WriteString(" ")
+				lineLen++
+			}
+			b.WriteString(w)
+			lineLen += wLen
+		}
+		b.WriteString("\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// oneline replaces newlines and tabs with spaces, collapses multiple spaces.
+func oneline(s string) string {
+	r := strings.NewReplacer("\n", " ", "\r", " ", "\t", " ")
+	out := r.Replace(s)
+	// Collapse multiple spaces.
+	for strings.Contains(out, "  ") {
+		out = strings.ReplaceAll(out, "  ", " ")
+	}
+	return strings.TrimSpace(out)
+}
