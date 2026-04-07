@@ -9,6 +9,7 @@ Terminal UI dashboard for monitoring ModSecurity WAF (OWASP CRS) running in Dock
 - **Live Events** — real-time feed of WAF audit log events with severity coloring
 - **Top IPs** — aggregated view of source IPs with geolocation (ipinfo.io) and drill-down
 - **Top Rules** — most triggered CRS rules with drill-down to see matching requests
+- **False Positives** — rules that triggered on HTTP 2xx responses (likely false positives) with drill-down
 - **Status** — engine mode, CRS version, paranoia level, anomaly thresholds, uptime, activity sparkline
 - Auto-detects ModSecurity container by name
 - Supports both multiplexed and raw Docker log streams
@@ -41,9 +42,9 @@ waf_con --debug                # dump raw Docker log stream for diagnostics
 | Key | Action |
 |-----|--------|
 | `Tab` / `Shift+Tab` | Switch tabs |
-| `1` `2` `3` `4` | Jump to tab |
+| `1` `2` `3` `4` `5` | Jump to tab |
 | `j` / `k` / `Up` / `Down` | Scroll |
-| `Enter` | Drill-down (Top IPs, Top Rules) |
+| `Enter` | Drill-down (Top IPs, Top Rules, FP) |
 | `Esc` | Back from drill-down |
 | `q` | Quit |
 
@@ -70,5 +71,5 @@ waf_con
     ├── parser/modsec.go     # ModSecurity JSON audit log parser
     ├── geo/                 # ipinfo.io client + file cache (~/.cache/waf-con/geo.json)
     ├── state/store.go       # Ring buffer (5K events) + lifetime counters
-    └── tui/                 # Bubble Tea v2 UI with 4 tabs
+    └── tui/                 # Bubble Tea v2 UI with 5 tabs
 ```
