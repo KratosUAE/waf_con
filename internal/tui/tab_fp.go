@@ -167,17 +167,17 @@ func (t *fpTab) viewDrillDown() string {
 	b.WriteString("\n\n")
 
 	const (
-		colTime   = 12
-		colIP     = 17
-		colMethod = 7
-		colHTTP   = 4
-		colSpacing = 10
+		colTime    = 12
+		colIP      = 17
+		colMethod  = 7
+		colHTTP    = 4
+		colSpacing = 12
 	)
 
 	fixedWidth := colTime + colIP + colMethod + colHTTP + colSpacing
 	flexible := max(t.width-fixedWidth, 20)
-	colURI := max(flexible*40/100, 10)
-	colMessage := max(flexible-colURI, 10)
+	colURI := max(flexible*30/100, 10)
+	colData := max(flexible-colURI, 10)
 
 	tableHeader := fmt.Sprintf("  %-*s  %-*s  %-*s  %-*s  %-*s  %-*s",
 		colTime, "TIME",
@@ -185,7 +185,7 @@ func (t *fpTab) viewDrillDown() string {
 		colMethod, "METHOD",
 		colURI, "URI",
 		colHTTP, "HTTP",
-		colMessage, "RULE MESSAGE",
+		colData, "MATCHED DATA",
 	)
 	b.WriteString(tableHeaderStyle.Render(tableHeader))
 	b.WriteString("\n")
@@ -195,10 +195,10 @@ func (t *fpTab) viewDrillDown() string {
 
 	for i := t.drillOffset; i < end; i++ {
 		ev := events[i]
-		msg := ""
+		data := ""
 		for _, r := range ev.Rules {
 			if r.RuleID == t.selectedRule {
-				msg = r.Message
+				data = r.Data
 				break
 			}
 		}
@@ -208,7 +208,7 @@ func (t *fpTab) viewDrillDown() string {
 			colMethod, ev.Method,
 			colURI, truncate(ev.URI, colURI),
 			colHTTP, ev.HTTPCode,
-			colMessage, truncate(msg, colMessage),
+			colData, truncate(data, colData),
 		)
 		b.WriteString(lipgloss.NewStyle().Foreground(colorWarning).Render(row))
 		if i < end-1 {

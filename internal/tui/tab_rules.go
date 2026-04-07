@@ -169,22 +169,25 @@ func (t *rulesTab) viewDrillDown() string {
 	b.WriteString("\n\n")
 
 	const (
-		colTime   = 12
-		colIP     = 17
-		colMethod = 7
-		colHTTP   = 4
-		colSpacing = 10
+		colTime    = 12
+		colIP      = 17
+		colMethod  = 7
+		colHTTP    = 4
+		colSpacing = 12
 	)
 
 	fixedWidth := colTime + colIP + colMethod + colHTTP + colSpacing
-	colURI := max(t.width-fixedWidth, 10)
+	flexible := max(t.width-fixedWidth, 20)
+	colURI := max(flexible*30/100, 10)
+	colData := max(flexible-colURI, 10)
 
-	tableHeader := fmt.Sprintf("  %-*s  %-*s  %-*s  %-*s  %-*s",
+	tableHeader := fmt.Sprintf("  %-*s  %-*s  %-*s  %-*s  %-*s  %-*s",
 		colTime, "TIME",
 		colIP, "IP",
 		colMethod, "METHOD",
 		colURI, "URI",
 		colHTTP, "HTTP",
+		colData, "MATCHED DATA",
 	)
 	b.WriteString(tableHeaderStyle.Render(tableHeader))
 	b.WriteString("\n")
@@ -194,12 +197,20 @@ func (t *rulesTab) viewDrillDown() string {
 
 	for i := t.drillOffset; i < end; i++ {
 		ev := events[i]
-		row := fmt.Sprintf("  %-*s  %-*s  %-*s  %-*s  %-*d",
+		data := ""
+		for _, r := range ev.Rules {
+			if r.RuleID == t.selectedRule {
+				data = r.Data
+				break
+			}
+		}
+		row := fmt.Sprintf("  %-*s  %-*s  %-*s  %-*s  %-*d  %-*s",
 			colTime, ev.Time.Format("Jan02 15:04"),
 			colIP, truncate(ev.ClientIP, colIP),
 			colMethod, ev.Method,
 			colURI, truncate(ev.URI, colURI),
 			colHTTP, ev.HTTPCode,
+			colData, truncate(data, colData),
 		)
 		b.WriteString(row)
 		if i < end-1 {
