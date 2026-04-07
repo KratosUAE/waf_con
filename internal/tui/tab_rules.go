@@ -58,11 +58,19 @@ func (t *rulesTab) update(key string) {
 			t.selectedDesc = rules[t.cursor].Description
 			t.drillDown = true
 			t.drillOffset = 0
+			t.drillCursor = 0
 		}
 	}
 }
 
 func (t *rulesTab) updateDrillDown(key string) {
+	events := t.store.EventsByRule(t.selectedRule)
+
+	// Guard: if detail view targets a row that no longer exists, exit detail.
+	if t.detailView && t.drillCursor >= len(events) {
+		t.detailView = false
+	}
+
 	if t.detailView {
 		switch key {
 		case "esc", "escape", "enter":
@@ -70,8 +78,6 @@ func (t *rulesTab) updateDrillDown(key string) {
 		}
 		return
 	}
-
-	events := t.store.EventsByRule(t.selectedRule)
 	maxCursor := max(len(events)-1, 0)
 
 	switch key {
@@ -255,8 +261,7 @@ func (t *rulesTab) viewDrillDown() string {
 func (t *rulesTab) viewDetail() string {
 	events := t.store.EventsByRule(t.selectedRule)
 	if t.drillCursor >= len(events) {
-		t.detailView = false
-		return t.viewDrillDown()
+		return t.viewDrillDown() // guard handled in Update
 	}
 	ev := events[t.drillCursor]
 

@@ -223,10 +223,5 @@ func wordWrap(s string, maxWidth int) string {
 // oneline replaces newlines and tabs with spaces, collapses multiple spaces.
 func oneline(s string) string {
 	r := strings.NewReplacer("\n", " ", "\r", " ", "\t", " ")
-	out := r.Replace(s)
-	// Collapse multiple spaces.
-	for strings.Contains(out, "  ") {
-		out = strings.ReplaceAll(out, "  ", " ")
-	}
-	return strings.TrimSpace(out)
+	return strings.Join(strings.Fields(r.Replace(s)), " ")
 }

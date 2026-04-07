@@ -290,9 +290,10 @@ func (a *App) renderTabBar() string {
 	// Pad between tabs and clock to push clock to the right.
 	tabsWidth := lipgloss.Width(tabsPart)
 	clockWidth := lipgloss.Width(clockStyled)
-	gap := a.width - tabsWidth - clockWidth - 2 // 2 for padding
+	gap := a.width - tabsWidth - clockWidth - 2
 	if gap < 1 {
-		gap = 1
+		// Terminal too narrow for clock — show tabs only.
+		return tabBarStyle.Render(tabsPart)
 	}
 	return tabBarStyle.Render(tabsPart + strings.Repeat(" ", gap) + clockStyled)
 }

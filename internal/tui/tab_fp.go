@@ -59,11 +59,18 @@ func (t *fpTab) update(key string) {
 			t.selectedDesc = rules[t.cursor].Description
 			t.drillDown = true
 			t.drillOffset = 0
+			t.drillCursor = 0
 		}
 	}
 }
 
 func (t *fpTab) updateDrillDown(key string) {
+	events := t.store.FPEventsByRule(t.selectedRule)
+
+	if t.detailView && t.drillCursor >= len(events) {
+		t.detailView = false
+	}
+
 	if t.detailView {
 		switch key {
 		case "esc", "escape", "enter":
@@ -71,8 +78,6 @@ func (t *fpTab) updateDrillDown(key string) {
 		}
 		return
 	}
-
-	events := t.store.FPEventsByRule(t.selectedRule)
 	maxCursor := max(len(events)-1, 0)
 
 	switch key {
@@ -160,7 +165,7 @@ func (t *fpTab) viewMain() string {
 			colDesc, truncate(rule.Description, colDesc),
 		)
 
-		styled := lipgloss.NewStyle().Foreground(colorWarning).Render(row)
+		styled := styleWarning.Render(row)
 		if i == t.cursor {
 			styled = selectedRowStyle.Render(row)
 		}
@@ -238,7 +243,7 @@ func (t *fpTab) viewDrillDown() string {
 		if i == t.drillCursor {
 			b.WriteString(selectedRowStyle.Render(row))
 		} else {
-			b.WriteString(lipgloss.NewStyle().Foreground(colorWarning).Render(row))
+			b.WriteString(styleWarning.Render(row))
 		}
 		if i < end-1 {
 			b.WriteString("\n")
@@ -252,8 +257,7 @@ func (t *fpTab) viewDrillDown() string {
 func (t *fpTab) viewDetail() string {
 	events := t.store.FPEventsByRule(t.selectedRule)
 	if t.drillCursor >= len(events) {
-		t.detailView = false
-		return t.viewDrillDown()
+		return t.viewDrillDown() // guard handled in Update
 	}
 	ev := events[t.drillCursor]
 

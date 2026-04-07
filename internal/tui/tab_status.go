@@ -21,7 +21,7 @@ var sparklineRunes = []rune(sparklineChars)
 // sparklineBarCount is the number of bars in the sparkline display.
 const sparklineBarCount = 30
 
-// statusTab renders the Status dashboard (Tab 4).
+// statusTab renders the Status dashboard (Tab 5).
 type statusTab struct {
 	store         *state.Store
 	containerInfo *docker.ContainerInfo

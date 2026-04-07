@@ -26,20 +26,8 @@ var tabAccentColors = [5]string{
 }
 
 // Tab bar styles.
-var (
-	activeTabStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(colorWhite).
-			Background(colorAccent).
-			Padding(0, 2)
-
-	inactiveTabStyle = lipgloss.NewStyle().
-				Foreground(colorDim).
-				Padding(0, 2)
-
-	tabBarStyle = lipgloss.NewStyle().
-			PaddingBottom(1)
-)
+var tabBarStyle = lipgloss.NewStyle().
+	PaddingBottom(1)
 
 // Table styles.
 var (
