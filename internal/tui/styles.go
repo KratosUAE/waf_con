@@ -16,6 +16,15 @@ var (
 	colorGreen    = lipgloss.Color("#55FF55")
 )
 
+// Per-tab accent colors (btop-inspired).
+var tabAccentColors = [5]string{
+	"#55FF55", // Live — green (activity)
+	"#55AAFF", // Top IPs — blue (network)
+	"#FF8855", // Top Rules — orange (alerts)
+	"#FFFF55", // FP — yellow (warning)
+	"#AA77FF", // Status — purple (info)
+}
+
 // Tab bar styles.
 var (
 	activeTabStyle = lipgloss.NewStyle().

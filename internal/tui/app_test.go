@@ -116,7 +116,8 @@ func TestApp_TabSwitching(t *testing.T) {
 		{"press 1", "1", tabIPs, tabLive},
 		{"press 2", "2", tabLive, tabIPs},
 		{"press 3", "3", tabLive, tabRules},
-		{"press 4", "4", tabLive, tabStatus},
+		{"press 4", "4", tabLive, tabFP},
+		{"press 5", "5", tabLive, tabStatus},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

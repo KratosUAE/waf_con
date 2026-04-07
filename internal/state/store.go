@@ -54,6 +54,9 @@ type Store struct {
 	ruleDesc    map[string]string
 	ruleSeverity map[string]string
 
+	// False positive candidates: rules that triggered on HTTP 2xx responses.
+	fpRuleCounts map[string]int
+
 	// Sparkline: keyed by unix_timestamp / 60.
 	minuteBuckets map[int64]int
 
@@ -80,6 +83,7 @@ func NewStoreWithCapacity(capacity int) *Store {
 		ipGeo:        make(map[string]string),
 		ruleDesc:     make(map[string]string),
 		ruleSeverity: make(map[string]string),
+		fpRuleCounts:  make(map[string]int),
 		minuteBuckets: make(map[int64]int),
 		startedAt:    time.Now(),
 	}
@@ -106,11 +110,15 @@ func (s *Store) Add(event *parser.Event) {
 	s.ipLastSeen[event.ClientIP] = event.Time
 
 	// Rule aggregates: each rule match in the event counts separately.
+	isFP := event.HTTPCode >= 200 && event.HTTPCode < 300 && len(event.Rules) > 0
 	for _, rule := range event.Rules {
 		s.ruleCounts[rule.RuleID]++
 		if _, ok := s.ruleDesc[rule.RuleID]; !ok {
 			s.ruleDesc[rule.RuleID] = rule.Message
 			s.ruleSeverity[rule.RuleID] = rule.Severity
+		}
+		if isFP {
+			s.fpRuleCounts[rule.RuleID]++
 		}
 	}
 
@@ -146,7 +154,10 @@ func (s *Store) TopIPs(n int) []IPStat {
 		})
 	}
 	sort.Slice(stats, func(i, j int) bool {
-		return stats[i].Count > stats[j].Count
+		if stats[i].Count != stats[j].Count {
+			return stats[i].Count > stats[j].Count
+		}
+		return stats[i].IP < stats[j].IP
 	})
 	if n > len(stats) {
 		n = len(stats)
@@ -166,7 +177,10 @@ func (s *Store) TopRules(n int) []RuleStat {
 		})
 	}
 	sort.Slice(stats, func(i, j int) bool {
-		return stats[i].Count > stats[j].Count
+		if stats[i].Count != stats[j].Count {
+			return stats[i].Count > stats[j].Count
+		}
+		return stats[i].RuleID < stats[j].RuleID
 	})
 	if n > len(stats) {
 		n = len(stats)
@@ -191,6 +205,48 @@ func (s *Store) EventsByRule(ruleID string) []*parser.Event {
 	all := s.Events()
 	result := make([]*parser.Event, 0)
 	for _, ev := range all {
+		for _, rule := range ev.Rules {
+			if rule.RuleID == ruleID {
+				result = append(result, ev)
+				break
+			}
+		}
+	}
+	return result
+}
+
+// FPRules returns rules that triggered on HTTP 2xx responses (false positive candidates),
+// sorted by count descending.
+func (s *Store) FPRules(n int) []RuleStat {
+	stats := make([]RuleStat, 0, len(s.fpRuleCounts))
+	for ruleID, count := range s.fpRuleCounts {
+		stats = append(stats, RuleStat{
+			RuleID:      ruleID,
+			Count:       count,
+			Description: s.ruleDesc[ruleID],
+			Severity:    s.ruleSeverity[ruleID],
+		})
+	}
+	sort.Slice(stats, func(i, j int) bool {
+		if stats[i].Count != stats[j].Count {
+			return stats[i].Count > stats[j].Count
+		}
+		return stats[i].RuleID < stats[j].RuleID
+	})
+	if n > len(stats) {
+		n = len(stats)
+	}
+	return stats[:n]
+}
+
+// FPEventsByRule returns events from the ring buffer where HTTP 2xx and the rule triggered.
+func (s *Store) FPEventsByRule(ruleID string) []*parser.Event {
+	all := s.Events()
+	result := make([]*parser.Event, 0)
+	for _, ev := range all {
+		if ev.HTTPCode < 200 || ev.HTTPCode >= 300 {
+			continue
+		}
 		for _, rule := range ev.Rules {
 			if rule.RuleID == ruleID {
 				result = append(result, ev)

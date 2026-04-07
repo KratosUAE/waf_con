@@ -21,12 +21,13 @@ const (
 	tabLive   = 0
 	tabIPs    = 1
 	tabRules  = 2
-	tabStatus = 3
-	tabCount  = 4
+	tabFP     = 3
+	tabStatus = 4
+	tabCount  = 5
 )
 
 // tabNames are the display labels for each tab.
-var tabNames = [tabCount]string{"1 Live", "2 Top IPs", "3 Top Rules", "4 Status"}
+var tabNames = [tabCount]string{"1 Live", "2 Top IPs", "3 Top Rules", "4 FP", "5 Status"}
 
 // RefreshTickMsg is sent periodically to trigger UI refresh and geo lookups.
 type RefreshTickMsg time.Time
@@ -52,6 +53,7 @@ type App struct {
 	liveTab   liveTab
 	ipsTab    ipsTab
 	rulesTab  rulesTab
+	fpTab     fpTab
 	statusTab statusTab
 }
 
@@ -79,6 +81,7 @@ func NewApp(
 		liveTab:         newLiveTab(store),
 		ipsTab:          newIPsTab(store, geoCache),
 		rulesTab:        newRulesTab(store),
+		fpTab:           newFPTab(store),
 		statusTab:       newStatusTab(store, containerInfo, crsVersion),
 	}
 }
@@ -222,6 +225,9 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		a.activeTab = tabRules
 		return a, nil
 	case "4":
+		a.activeTab = tabFP
+		return a, nil
+	case "5":
 		a.activeTab = tabStatus
 		return a, nil
 	}
@@ -234,6 +240,8 @@ func (a *App) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		a.ipsTab.update(key)
 	case tabRules:
 		a.rulesTab.update(key)
+	case tabFP:
+		a.fpTab.update(key)
 	}
 
 	return a, nil
@@ -248,6 +256,8 @@ func (a *App) propagateSize() {
 	a.ipsTab.height = contentHeight
 	a.rulesTab.width = a.width
 	a.rulesTab.height = contentHeight
+	a.fpTab.width = a.width
+	a.fpTab.height = contentHeight
 	a.statusTab.width = a.width
 	a.statusTab.height = contentHeight
 }
@@ -256,10 +266,19 @@ func (a *App) propagateSize() {
 func (a *App) renderTabBar() string {
 	var tabs []string
 	for i, name := range tabNames {
+		color := lipgloss.Color(tabAccentColors[i])
 		if i == a.activeTab {
-			tabs = append(tabs, activeTabStyle.Render(name))
+			tabs = append(tabs, lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#000000")).
+				Background(color).
+				Padding(0, 2).
+				Render(name))
 		} else {
-			tabs = append(tabs, inactiveTabStyle.Render(name))
+			tabs = append(tabs, lipgloss.NewStyle().
+				Foreground(color).
+				Padding(0, 2).
+				Render(name))
 		}
 	}
 	tabsPart := lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
@@ -287,6 +306,8 @@ func (a *App) renderActiveTab() string {
 		return a.ipsTab.view()
 	case tabRules:
 		return a.rulesTab.view()
+	case tabFP:
+		return a.fpTab.view()
 	case tabStatus:
 		return a.statusTab.view()
 	default:
@@ -306,6 +327,12 @@ func (a *App) renderHelpBar() string {
 		}
 	case tabRules:
 		if a.rulesTab.drillDown {
+			help += "  Esc:back"
+		} else {
+			help += "  Enter:drill-down"
+		}
+	case tabFP:
+		if a.fpTab.drillDown {
 			help += "  Esc:back"
 		} else {
 			help += "  Enter:drill-down"
