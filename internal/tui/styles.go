@@ -37,8 +37,6 @@ var (
 				BorderBottom(true).
 				BorderStyle(lipgloss.NormalBorder())
 
-	tableRowStyle = lipgloss.NewStyle()
-
 	selectedRowStyle = lipgloss.NewStyle().
 				Reverse(true)
 )
@@ -72,6 +70,7 @@ var (
 	styleWarning  = lipgloss.NewStyle().Foreground(colorWarning)
 	styleNotice   = lipgloss.NewStyle().Foreground(colorNotice)
 	styleDefault  = lipgloss.NewStyle()
+	styleInfo     = lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
 )
 
 // severityStyle returns a pre-allocated style for the given severity level.

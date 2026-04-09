@@ -99,6 +99,15 @@ func (t *ipsTab) updateDrillDown(key string) {
 			t.detailView = true
 		}
 	}
+
+	// Keep drillOffset in sync with cursor (moved from View to Update).
+	visible := max(t.visibleRows()-4, 1)
+	if t.drillCursor >= t.drillOffset+visible {
+		t.drillOffset = t.drillCursor - visible + 1
+	}
+	if t.drillCursor < t.drillOffset {
+		t.drillOffset = t.drillCursor
+	}
 }
 
 // visibleRows returns rows available for the table body.
@@ -222,12 +231,6 @@ func (t *ipsTab) viewDrillDown() string {
 	b.WriteString("\n")
 
 	visible := max(t.visibleRows()-4, 1)
-	if t.drillCursor >= t.drillOffset+visible {
-		t.drillOffset = t.drillCursor - visible + 1
-	}
-	if t.drillCursor < t.drillOffset {
-		t.drillOffset = t.drillCursor
-	}
 	end := min(t.drillOffset+visible, len(events))
 
 	for i := t.drillOffset; i < end; i++ {
@@ -271,17 +274,16 @@ func (t *ipsTab) viewDetail() string {
 	b.WriteString(lipgloss.NewStyle().Foreground(colorDim).Render("  Esc/Enter to go back"))
 	b.WriteString("\n\n")
 
-	infoStyle := lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
-	b.WriteString(infoStyle.Render("  Time:   "))
+	b.WriteString(styleInfo.Render("  Time:   "))
 	b.WriteString(ev.Time.Format("Jan02 15:04:05"))
 	b.WriteString("\n")
-	b.WriteString(infoStyle.Render("  Method: "))
+	b.WriteString(styleInfo.Render("  Method: "))
 	b.WriteString(ev.Method)
 	b.WriteString("\n")
-	b.WriteString(infoStyle.Render("  URI:    "))
+	b.WriteString(styleInfo.Render("  URI:    "))
 	b.WriteString(ev.URI)
 	b.WriteString("\n")
-	b.WriteString(infoStyle.Render("  HTTP:   "))
+	b.WriteString(styleInfo.Render("  HTTP:   "))
 	fmt.Fprintf(&b, "%d", ev.HTTPCode)
 	b.WriteString("\n\n")
 
@@ -289,7 +291,7 @@ func (t *ipsTab) viewDetail() string {
 		b.WriteString(lipgloss.NewStyle().Foreground(colorDim).Render("  No rules triggered (pass-through event)"))
 		b.WriteString("\n")
 	} else {
-		b.WriteString(infoStyle.Render("  Rules:"))
+		b.WriteString(styleInfo.Render("  Rules:"))
 		b.WriteString("\n\n")
 
 		wrapWidth := max(t.width-6, 20)

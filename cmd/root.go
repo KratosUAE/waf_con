@@ -33,15 +33,18 @@ var (
 )
 
 // Version is set at build time via ldflags.
-var Version = "0.0.1"
+var Version = "dev"
 
 var rootCmd = &cobra.Command{
 	Use:     "waf_con",
 	Short:   "ModSecurity WAF monitoring TUI dashboard",
 	Version: Version,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// Load IPINFO_TOKEN from ~/.aux/.env.
+		// Load IPINFO_TOKEN from ~/.aux/.env, then check env var as fallback.
 		loadEnv()
+		if ipinfoToken == "" {
+			ipinfoToken = os.Getenv("IPINFO_TOKEN")
+		}
 
 		// Set up signal-aware context so the whole tree gets clean cancellation.
 		// signalStop is stored in a package-level var and called in PersistentPostRun

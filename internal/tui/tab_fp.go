@@ -99,6 +99,14 @@ func (t *fpTab) updateDrillDown(key string) {
 			t.detailView = true
 		}
 	}
+
+	visible := max(t.visibleRows()-4, 1)
+	if t.drillCursor >= t.drillOffset+visible {
+		t.drillOffset = t.drillCursor - visible + 1
+	}
+	if t.drillCursor < t.drillOffset {
+		t.drillOffset = t.drillCursor
+	}
 }
 
 func (t *fpTab) visibleRows() int {
@@ -215,12 +223,6 @@ func (t *fpTab) viewDrillDown() string {
 	b.WriteString("\n")
 
 	visible := max(t.visibleRows()-4, 1)
-	if t.drillCursor >= t.drillOffset+visible {
-		t.drillOffset = t.drillCursor - visible + 1
-	}
-	if t.drillCursor < t.drillOffset {
-		t.drillOffset = t.drillCursor
-	}
 	end := min(t.drillOffset+visible, len(events))
 
 	for i := t.drillOffset; i < end; i++ {
@@ -279,7 +281,7 @@ func (t *fpTab) viewDetail() string {
 	b.WriteString(lipgloss.NewStyle().Foreground(colorDim).Render("  Esc/Enter to go back"))
 	b.WriteString("\n\n")
 
-	infoStyle := lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
+	infoStyle := styleInfo
 	b.WriteString(infoStyle.Render("  Time:   "))
 	b.WriteString(ev.Time.Format("Jan02 15:04:05"))
 	b.WriteString("\n")
