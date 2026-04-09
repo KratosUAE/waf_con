@@ -20,10 +20,12 @@ type ipsTab struct {
 	width    int
 	height   int
 
-	cursor     int    // selected row in main table
-	drillDown  bool   // true when showing events for a specific IP
-	selectedIP string // IP being drilled into
-	drillOffset int   // scroll offset in drill-down view
+	cursor      int    // selected row in main table
+	drillDown   bool   // true when showing events for a specific IP
+	selectedIP  string // IP being drilled into
+	drillCursor int    // selected row in drill-down table
+	drillOffset int    // scroll offset in drill-down view
+	detailView  bool   // true when showing full detail of a single event
 }
 
 func newIPsTab(store *state.Store, geoCache *geo.Cache) ipsTab {
@@ -57,24 +59,44 @@ func (t *ipsTab) update(key string) {
 			t.selectedIP = ips[t.cursor].IP
 			t.drillDown = true
 			t.drillOffset = 0
+			t.drillCursor = 0
 		}
 	}
 }
 
 func (t *ipsTab) updateDrillDown(key string) {
+	events := t.store.EventsByIP(t.selectedIP)
+
+	if t.detailView && t.drillCursor >= len(events) {
+		t.detailView = false
+	}
+
+	if t.detailView {
+		switch key {
+		case "esc", "escape", "enter":
+			t.detailView = false
+		}
+		return
+	}
+
+	maxCursor := max(len(events)-1, 0)
+
 	switch key {
 	case "esc", "escape":
 		t.drillDown = false
 		t.selectedIP = ""
+		t.drillCursor = 0
 	case "j", "down":
-		events := t.store.EventsByIP(t.selectedIP)
-		maxOffset := max(len(events)-t.visibleRows()+4, 0)
-		if t.drillOffset < maxOffset {
-			t.drillOffset++
+		if t.drillCursor < maxCursor {
+			t.drillCursor++
 		}
 	case "k", "up":
-		if t.drillOffset > 0 {
-			t.drillOffset--
+		if t.drillCursor > 0 {
+			t.drillCursor--
+		}
+	case "enter":
+		if len(events) > 0 && t.drillCursor < len(events) {
+			t.detailView = true
 		}
 	}
 }
@@ -86,6 +108,9 @@ func (t *ipsTab) visibleRows() int {
 
 // view renders the IPs tab content.
 func (t *ipsTab) view() string {
+	if t.detailView {
+		return t.viewDetail()
+	}
 	if t.drillDown {
 		return t.viewDrillDown()
 	}
@@ -197,6 +222,12 @@ func (t *ipsTab) viewDrillDown() string {
 	b.WriteString("\n")
 
 	visible := max(t.visibleRows()-4, 1)
+	if t.drillCursor >= t.drillOffset+visible {
+		t.drillOffset = t.drillCursor - visible + 1
+	}
+	if t.drillCursor < t.drillOffset {
+		t.drillOffset = t.drillCursor
+	}
 	end := min(t.drillOffset+visible, len(events))
 
 	for i := t.drillOffset; i < end; i++ {
@@ -208,11 +239,79 @@ func (t *ipsTab) viewDrillDown() string {
 			colURI, truncate(ev.URI, colURI),
 			colHTTP, ev.HTTPCode,
 			colRule, firstRuleID(ev),
-			colMessage, truncate(firstMessage(ev), colMessage),
+			colMessage, truncate(oneline(firstMessage(ev)), colMessage),
 		)
-		b.WriteString(severityStyle(severity).Render(row))
+		if i == t.drillCursor {
+			b.WriteString(selectedRowStyle.Render(row))
+		} else {
+			b.WriteString(severityStyle(severity).Render(row))
+		}
 		if i < end-1 {
 			b.WriteString("\n")
+		}
+	}
+
+	return b.String()
+}
+
+// viewDetail shows full event details with word-wrapped matched data.
+func (t *ipsTab) viewDetail() string {
+	events := t.store.EventsByIP(t.selectedIP)
+	if t.drillCursor >= len(events) {
+		return t.viewDrillDown()
+	}
+	ev := events[t.drillCursor]
+
+	var b strings.Builder
+
+	geoStr := formatGeoEntry(t.geoCache, t.selectedIP)
+	title := fmt.Sprintf("Event detail — IP: %s (%s)", t.selectedIP, geoStr)
+	b.WriteString(drillDownHeaderStyle.Render(title))
+	b.WriteString("\n")
+	b.WriteString(lipgloss.NewStyle().Foreground(colorDim).Render("  Esc/Enter to go back"))
+	b.WriteString("\n\n")
+
+	infoStyle := lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
+	b.WriteString(infoStyle.Render("  Time:   "))
+	b.WriteString(ev.Time.Format("Jan02 15:04:05"))
+	b.WriteString("\n")
+	b.WriteString(infoStyle.Render("  Method: "))
+	b.WriteString(ev.Method)
+	b.WriteString("\n")
+	b.WriteString(infoStyle.Render("  URI:    "))
+	b.WriteString(ev.URI)
+	b.WriteString("\n")
+	b.WriteString(infoStyle.Render("  HTTP:   "))
+	fmt.Fprintf(&b, "%d", ev.HTTPCode)
+	b.WriteString("\n\n")
+
+	if len(ev.Rules) == 0 {
+		b.WriteString(lipgloss.NewStyle().Foreground(colorDim).Render("  No rules triggered (pass-through event)"))
+		b.WriteString("\n")
+	} else {
+		b.WriteString(infoStyle.Render("  Rules:"))
+		b.WriteString("\n\n")
+
+		wrapWidth := max(t.width-6, 20)
+		for i, r := range ev.Rules {
+			// Rule header
+			ruleHeader := fmt.Sprintf("  [%s] %s — %s", r.Severity, r.RuleID, r.Message)
+			b.WriteString(severityStyle(r.Severity).Render(ruleHeader))
+			b.WriteString("\n")
+
+			// Matched data
+			if r.Data != "" {
+				b.WriteString(lipgloss.NewStyle().Foreground(colorDim).Render("  Data: "))
+				wrapped := wordWrap(r.Data, wrapWidth)
+				for _, line := range strings.Split(wrapped, "\n") {
+					b.WriteString("    ")
+					b.WriteString(styleWarning.Render(line))
+					b.WriteString("\n")
+				}
+			}
+			if i < len(ev.Rules)-1 {
+				b.WriteString("\n")
+			}
 		}
 	}
 

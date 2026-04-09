@@ -321,8 +321,10 @@ func (a *App) renderHelpBar() string {
 	help := "  q:quit  Tab:switch  j/k:scroll"
 	switch a.activeTab {
 	case tabIPs:
-		if a.ipsTab.drillDown {
+		if a.ipsTab.detailView {
 			help += "  Esc:back"
+		} else if a.ipsTab.drillDown {
+			help += "  Enter:detail  Esc:back"
 		} else {
 			help += "  Enter:drill-down"
 		}
